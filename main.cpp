@@ -6,7 +6,7 @@ using namespace cv;
 using namespace std;
 
 CvFont font = cvFont(2);
-
+const char * env_p = std::getenv("MOCAP_IMAGE_DIR");
 
 void displayOpenCVVersion() {
 	std::cout << "OpenCV Version: " << std::endl << 
@@ -20,7 +20,7 @@ int main(int argc, char** argv)
 
     cout << "Camera index?" << endl;
     int cIndex = 0;
-    // cin >> cIndex;
+    cin >> cIndex;
     
     VideoCapture cap(cIndex);
 
@@ -35,7 +35,7 @@ int main(int argc, char** argv)
     }
 
     namedWindow("original", 1);
-    namedWindow("threshold", 1);
+
 
     while(true) 
     {
@@ -78,13 +78,18 @@ int main(int argc, char** argv)
         cout << posX << " " << posY << endl;
         if(posX >= 0 && posY >= 0)
         {
-            //cvPutText(, "Movement detected", Point(0,0), &font, Scalar(255, 0, 0));
+            putText(image1, "Movement detected", Point(0,40), CV_FONT_NORMAL, 1, Scalar(0, 0, 255));
             line(image1, Point(posX + 30, posY), Point(posX - 30, posY), Scalar(0, 0, 255), 2);
             line(image1, Point(posX, posY + 30), Point(posX, posY - 30), Scalar(0, 0, 255), 2);
+            if(env_p) 
+            {
+                String imageDirectory = String(env_p) + "/capture.png";
+                cout << "Saving capture to: " << imageDirectory << endl;
+                imwrite(imageDirectory, image1);
+            }
         }
 
 
-        imshow("threshold", thresholdImg);
         imshow("original", image1);
 
         if (waitKey(30) == 27)

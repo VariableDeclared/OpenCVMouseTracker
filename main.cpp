@@ -6,7 +6,17 @@ using namespace cv;
 using namespace std;
 
 CvFont font = cvFont(2);
+
+/* ENVS TO RUN THE PROGRAM:
+*   
+* MOCAP_IMAGE_DIR: If defined program will save image to directory, over-writing the last capture, when motion is detected.
+* MOCAP_DEBUG_MODE: Mode for outputting console output (affects performance). 
+*       Modes to define: INFO, PROD, DEBUG, VERBOSE
+*       INFO - 1
+*       VERBOSE - 4
+*/
 const char * env_p = std::getenv("MOCAP_IMAGE_DIR");
+String DEBUG = String(std::getenv("MOCAP_DEBUG_MODE"));
 
 void displayOpenCVVersion() {
 	std::cout << "OpenCV Version: " << std::endl << 
@@ -75,8 +85,10 @@ int main(int argc, char** argv)
 
         int posX = dM10 / dArea;
         int posY = dM01 / dArea;
-        cout << posX << " " << posY << endl;
-        if(posX >= 0 && posY >= 0)
+
+        if (DEBUG == "4")
+            cout << posX << " " << posY << endl;
+        if(posX >= 0 && posY >= 0 && (posX != posY))
         {
             putText(image1, "Movement detected", Point(0,40), CV_FONT_NORMAL, 1, Scalar(0, 0, 255));
             line(image1, Point(posX + 30, posY), Point(posX - 30, posY), Scalar(0, 0, 255), 2);

@@ -1,0 +1,7 @@
+#!/bin/bash
+MO_DETECT_PROJECT_DIR=$(git rev-parse --show-toplevel)
+LOCATION="motionbot.wifi"
+
+rsync -avh ${MO_DETECT_PROJECT_DIR} ${LOCATION}:~/
+
+ssh ${LOCATION} "cd ~/MotionDetector/build && rm CMakeCache.txt && cmake ../ && make"

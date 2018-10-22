@@ -11,6 +11,6 @@ set(CMAKE_BUILD_TYPE Debug)
 
 project( ComputerVision )
 find_package( OpenCV REQUIRED )
-add_executable( ComputerVision main.cpp )
+add_executable( ComputerVision_$ENV{MO_CAP_VERSION} main.cpp )
 target_link_libraries( ComputerVision ${OpenCV_LIBS} )
 

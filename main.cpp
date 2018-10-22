@@ -1,6 +1,9 @@
 #include <iostream>
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc.hpp"
+#include "opencv2/opencv.hpp"
+#include "opencv2/tracking/tracker.hpp"
+
 
 using namespace cv;
 using namespace std;
@@ -17,11 +20,53 @@ CvFont font = cvFont(2);
 */
 const char * env_p = std::getenv("MOCAP_IMAGE_DIR");
 String DEBUG = String(std::getenv("MOCAP_DEBUG_MODE"));
+vector<string> trackerTypes = { "BOOSTING", "MIL", "KCF", "TLD", "MEDIANFLOW", "GOTURN", "MOSSE", "CSRT" };
+
 
 void displayOpenCVVersion() {
 	std::cout << "OpenCV Version: " << std::endl << 
 		"v " << CV_MAJOR_VERSION << "." << CV_MINOR_VERSION << std::endl;
 }
+
+
+Ptr<Tracker> createTrackerByName(string trackerType) 
+{
+    Ptr<Tracker> tracker;
+    
+    if(trackerType == trackerTypes[0])
+        tracker = TrackerBoosting::create();
+    else if (trackerType == trackerTypes[1])
+        tracker = TrackerMIL::create();
+    else if (trackerType == trackerTypes[2])
+        tracker = TrackerKCF::create();
+    else if (trackerType == trackerTypes[3])
+        tracker = TrackerTLD::create();
+    else if (trackerType == trackerTypes[4])
+        tracker = TrackerMedianFlow::create();
+    else if (trackerType == trackerTypes[5])
+        tracker = TrackerGOTURN::create();
+    else if (trackerType == trackerTypes[6])
+        tracker = TrackerMOSSE::create();
+    else if (trackerType == trackerTypes[7])
+        tracker = TrackerCSRT::create();
+    else {
+        cout << "Incorrect tracker name" << endl;
+        cout << "Available trackers are: " << endl;
+        for (vector<string>::iterator it = trackerTypes.begin() ; it != trackerTypes.end(); ++it) {
+            std::cout << " " << *it << endl;
+        }
+    }
+    return tracker;
+}
+
+
+void getRandomColors(vector<Scalar>& colors, int numColors)
+{
+  RNG rng(0);
+  for(int i=0; i < numColors; i++)
+    colors.push_back(Scalar(rng.uniform(0,255), rng.uniform(0, 255), rng.uniform(0, 255))); 
+}
+
 
 int main(int argc, char** argv) 
 {
@@ -33,86 +78,63 @@ int main(int argc, char** argv)
     cin >> cIndex;
     
     VideoCapture cap(cIndex);
-
-    Mat image1, image2;
-    Mat grayscale1, grayscale2;
-    Mat absOut, thresholdImg;
-
-    if (!cap.isOpened())
+    
+    vector<Rect> bboxes;
+    Mat frame;
+    
+    if(!cap.isOpened())
     {
-        cout << "Cannot open web cam" << endl;
+        cout << "Error opening open camera stream " << cIndex << endl;
         return -1;
     }
 
-    namedWindow("original", 1);
+    // While loop probably starts here...
+    cap >> frame;
 
+    bool showCrossHair = true;
+    bool fromCentre = false;
+    cout << "\n==========================================================\n";
+    cout << "OpenCV says press c to cancel objects selection process" << endl;
+    cout << "It doesn't work. Press Escape to exit selection process" << endl;
+    cout << "\n==========================================================\n";
 
-    while(true) 
+    cv::selectROIs("MultiTracker", frame, bboxes, showCrossHair, fromCentre);
+
+    if(bboxes.size() < 1)
+        return 0;
+
+    vector<Scalar> colors;
+    getRandomColors(colors, bboxes.size());
+
+    string trackerType = "CSRT";
+
+    Ptr<MultiTracker> multiTracker = cv::MultiTracker::create();
+
+    for(int i=0; i < bboxes.size(); i++)
+        multiTracker->add(createTrackerByName(trackerType), frame, Rect2d(bboxes[i]));
+
+    while(cap.isOpened())
     {
-        
-        if(!cap.read(image1))
-        {
-            cout << "Cannot read a frame from the video stream" << endl;
-            break;
-        }
-        
+        cap >> frame;
 
-        if (!cap.read(image2)) 
+        if(frame.empty()) break;
+
+        multiTracker->update(frame);
+
+        for(unsigned i = 0; i < multiTracker->getObjects().size(); i++) 
         {
-            cout << "Cannot read a frame from the video stream" << endl;
-            break;
+            rectangle(frame, multiTracker->getObjects()[i], colors[i], 2, 1);
         }
 
+        imshow("Multitracker", frame);
 
-        cvtColor(image1, grayscale1, COLOR_BGR2GRAY);
-        cvtColor(image2, grayscale2, COLOR_BGR2GRAY);
-
-        absdiff(grayscale1, grayscale2, absOut);
-        
-        threshold(absOut, thresholdImg, 30, 255, THRESH_BINARY);
-
-        blur(thresholdImg, thresholdImg, Size(200, 200));
-        
-        
-        
-        erode(thresholdImg, thresholdImg, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
-        dilate(thresholdImg, thresholdImg, getStructuringElement(MORPH_ELLIPSE, Size(5, 5)));
-
-        Moments mome = moments(thresholdImg, true);
-        double dM01 = mome.m01;
-        double dM10 = mome.m10;
-        double dArea = mome.m00;
-
-        int posX = dM10 / dArea;
-        int posY = dM01 / dArea;
-
-        if (DEBUG == "4")
-            cout << posX << " " << posY << endl;
-        if(posX >= 0 && posY >= 0 && (posX != posY))
-        {
-            putText(image1, "Movement detected", Point(0,40), CV_FONT_NORMAL, 1, Scalar(0, 0, 255));
-            line(image1, Point(posX + 30, posY), Point(posX - 30, posY), Scalar(0, 0, 255), 2);
-            line(image1, Point(posX, posY + 30), Point(posX, posY - 30), Scalar(0, 0, 255), 2);
-            if(env_p) 
-            {
-                String imageDirectory = String(env_p) + "/capture.png";
-                cout << "Saving capture to: " << imageDirectory << endl;
-                imwrite(imageDirectory, image1);
-            }
-        }
-
-
-        imshow("original", image1);
-
-        if (waitKey(30) == 27)
-        {
-            cout << "esc key pressed" << endl;
-            break;
-        }
-
-        
-
+        if (waitKey(1) == 27) break;
     }
+
+
+
+
+
 
     return 0;
 }

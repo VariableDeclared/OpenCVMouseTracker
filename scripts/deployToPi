@@ -1,6 +1,5 @@
 #!/bin/bash
-MO_DETECT_PROJECT_DIR=$(git rev-parse --show-toplevel)
-LOCATION="motionbot.wifi"
+PROJECT_DIR=$(git rev-parse --show-toplevel)
 
 rsync -avh ${MO_DETECT_PROJECT_DIR} ${LOCATION}:~/
 

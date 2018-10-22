@@ -1,0 +1,6 @@
+#!/bin/bash
+
+
+export MO_DETECT_PROJECT_DIR=$(git rev-parse --show-toplevel)
+export LOCATION="motionbot.wifi"
+export MO_CAP_VERSION="0.2"
